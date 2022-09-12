@@ -18,9 +18,9 @@ fi
 wget https://storage.googleapis.com/deepmind-media/Datasets/${DATASET}.tar.gz
 
 tar -zxvf ${DATASET}.tar.gz --strip-components 1 -C ${DATA_DIR}/
-mv ${DATA_DIR}/train.csv ${DATA_DIR}/kinetics_train.csv
-mv ${DATA_DIR}/validate.csv ${DATA_DIR}/kinetics_val.csv
-mv ${DATA_DIR}/test.csv ${DATA_DIR}/kinetics_test.csv
+mv ${DATA_DIR}/train.csv ${DATA_DIR}/train.csv
+mv ${DATA_DIR}/validate.csv ${DATA_DIR}/validate.csv
+mv ${DATA_DIR}/test.csv ${DATA_DIR}/test.csv
 
 rm ${DATASET}.tar.gz
 rm ${DATA_DIR}/*.json

@@ -4,12 +4,14 @@
 # ------------------------------------------------------------------------------
 import argparse
 import glob
+from importlib.resources import path
 import json
 import os
 import shutil
 import ssl
 import subprocess
 import uuid
+from pathlib import Path
 from collections import OrderedDict
 
 import pandas as pd
@@ -81,10 +83,13 @@ def download_clip(video_identifier,
 
     status = False
     # Construct command line for getting the direct video link.
-    tmp_filename = os.path.join(tmp_dir, '%s.%%(ext)s' % uuid.uuid4())
+    tmp_filename_name_ext = '%s.%%(ext)s' % video_identifier
+    tmp_filename = os.path.join(tmp_dir, tmp_filename_name_ext)
 
     if not os.path.exists(output_filename):
-        if not os.path.exists(tmp_filename):
+        tmp_filename_list = glob.glob('%s*.*' % os.path.join(tmp_dir, tmp_filename_name_ext.split('.')[0]))
+        # if not os.path.exists(tmp_filename):
+        if len(tmp_filename_list) <= 0:
             command = [
                 'youtube-dl', '--quiet', '--no-warnings',
                 '--no-check-certificate', '-f', 'mp4', '-o',
@@ -101,11 +106,17 @@ def download_clip(video_identifier,
                 except subprocess.CalledProcessError as err:
                     attempts += 1
                     if attempts == num_attempts:
-                        return status, err.output
+                        try:
+                            ret = str(err.output, 'UTF-8') if isinstance(err.output, bytes) else err.output
+                        except UnicodeDecodeError:
+                            ret = err.__str__()
+                        return status, ret
+                        # return status, err.output
                 else:
                     break
 
-        tmp_filename = glob.glob('%s*' % tmp_filename.split('.')[0])[0]
+
+        tmp_filename = glob.glob('%s*.*' % os.path.join(tmp_dir, tmp_filename_name_ext.split('.')[0]))[0]
         # Construct command to trim the videos (ffmpeg required).
         command = [
             'ffmpeg', '-i',
@@ -113,18 +124,24 @@ def download_clip(video_identifier,
             str(start_time), '-t',
             str(end_time - start_time), '-c:v', 'libx264', '-c:a', 'copy',
             '-threads', '1', '-loglevel', 'panic',
+            
             '"%s"' % output_filename
         ]
         command = ' '.join(command)
+        print(command)
         try:
             subprocess.check_output(
-                command, shell=True, stderr=subprocess.STDOUT)
+                command, shell=True, stderr=subprocess.STDOUT, universal_newlines=True)
         except subprocess.CalledProcessError as err:
-            return status, err.output
+            try:
+                ret = str(err.output, 'UTF-8') if isinstance(err.output, bytes) else err.output
+            except UnicodeDecodeError:
+                ret = err.__str__()
+            return status, ret
 
     # Check if the video was successfully saved.
     status = os.path.exists(output_filename)
-    os.remove(tmp_filename)
+    # os.remove(tmp_filename)
     return status, 'Downloaded'
 
 
@@ -174,12 +191,20 @@ def parse_kinetics_annotations(input_csv, ignore_is_cc=False):
 def main(input_csv,
          output_dir,
          trim_format='%06d',
-         num_jobs=24,
-         tmp_dir='/tmp/kinetics'):
+        #  num_jobs=24,
+         num_jobs=1,
+         tmp_dir='/tmp/kinetics',
+         labels=None):
     tmp_dir = os.path.join(tmp_dir, '.tmp_dir')
 
     # Reading and parsing Kinetics.
     dataset = parse_kinetics_annotations(input_csv)
+    print(f"{labels=}")
+    print(f"{dataset=}")
+    if labels is not None:
+        dataset = dataset[dataset['label-name'].map(lambda x: x in labels)]
+    print(f"{dataset=}")
+        # df2['a'].map(lambda x: x.startswith('t'))
 
     # Creates folders where videos will be saved later.
     label_to_dir = create_video_folders(dataset, output_dir, tmp_dir)
@@ -197,9 +222,10 @@ def main(input_csv,
                              for i, row in dataset.iterrows())
 
     # Clean tmp dir.
-    shutil.rmtree(tmp_dir)
+    # shutil.rmtree(tmp_dir)
 
     # Save download report.
+    print(f"{status_list=}")
     with open('download_report.json', 'w') as fobj:
         fobj.write(json.dumps(status_list))
 
@@ -224,6 +250,15 @@ if __name__ == '__main__':
         help=('This will be the format for the '
               'filename of trimmed videos: '
               'videoid_%0xd(start_time)_%0xd(end_time).mp4'))
+    p.add_argument(
+        '-l',
+        '--labels',
+        action="extend",
+        nargs="+",
+        type=str,
+        default=None,
+        help=('list of labels that shall be downloaded.'
+              'if None, all videos will be dowloaded'))
     p.add_argument('-n', '--num-jobs', type=int, default=24)
     p.add_argument('-t', '--tmp-dir', type=str, default='/tmp/kinetics')
     # help='CSV file of the previous version of Kinetics.')

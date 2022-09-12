@@ -35,7 +35,8 @@ def parse_args():
     parser.add_argument(
         '--device', type=str, default='cuda:0', help='CPU/CUDA device option')
     parser.add_argument(
-        '--camera-id', type=int, default=0, help='camera device id')
+        # '--camera-id', type=int, default=0, help='camera device id')
+        '--camera-id', default=0, help='camera device id')
     parser.add_argument(
         '--threshold',
         type=float,

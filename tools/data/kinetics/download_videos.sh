@@ -6,6 +6,8 @@ source activate kinetics
 pip install --upgrade youtube-dl
 
 DATASET=$1
+LABELS=$2
+
 if [ "$DATASET" == "kinetics400" ] || [ "$1" == "kinetics600" ] || [ "$1" == "kinetics700" ]; then
         echo "We are processing $DATASET"
 else
@@ -15,8 +17,8 @@ fi
 
 DATA_DIR="../../../data/${DATASET}"
 ANNO_DIR="../../../data/${DATASET}/annotations"
-python download.py ${ANNO_DIR}/kinetics_train.csv ${DATA_DIR}/videos_train
-python download.py ${ANNO_DIR}/kinetics_val.csv ${DATA_DIR}/videos_val
+python download.py ${ANNO_DIR}/kinetics_train.csv ${DATA_DIR}/videos_train -t "../../../data/" -l "$LABELS"
+python download.py ${ANNO_DIR}/kinetics_val.csv ${DATA_DIR}/videos_val -t "../../../data/" -l "$LABELS"
 
 source deactivate kinetics
 conda remove -n kinetics --all
